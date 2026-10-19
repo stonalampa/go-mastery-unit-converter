@@ -4,8 +4,11 @@ package web
 import (
 	"bytes"
 	"embed"
+	"errors"
+	"fmt"
 	"html/template"
 	"net/http"
+	"strconv"
 
 	"github.com/stonalampa/go-mastery-unit-converter/internal/convert"
 )
@@ -31,6 +34,9 @@ type pageData struct {
 	Nav      []navLink
 	Category convert.Category
 	From, To string // selected Unit IDs
+	Value    string // the value as typed, kept in the form
+	Result   string // e.g. "1 mi = 1609.34 m"
+	Error    string // shown instead of a Result when the input is invalid
 }
 
 // NewHandler returns the app's HTTP handler with all routes registered.
@@ -42,7 +48,53 @@ func NewHandler() http.Handler {
 	mux.HandleFunc("GET /length", func(w http.ResponseWriter, _ *http.Request) {
 		render(w, http.StatusOK, newPage(convert.Length))
 	})
+	mux.HandleFunc("POST /length", convertHandler(convert.Length))
 	return mux
+}
+
+// convertHandler handles a submitted form: it converts the value and renders
+// the form again with the Result, or with an Error and status 400.
+func convertHandler(c convert.Category) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		data := newPage(c)
+		data.Value = r.FormValue("value")
+		data.From = r.FormValue("from")
+		data.To = r.FormValue("to")
+
+		result, err := convertForm(c, data.Value, data.From, data.To)
+		if err != nil {
+			data.Error = err.Error()
+			render(w, http.StatusBadRequest, data)
+			return
+		}
+		data.Result = result
+		render(w, http.StatusOK, data)
+	}
+}
+
+// convertForm parses the submitted value, converts it and formats the Result.
+func convertForm(c convert.Category, value, from, to string) (string, error) {
+	v, err := strconv.ParseFloat(value, 64)
+	if errors.Is(err, strconv.ErrRange) {
+		return "", convert.ErrNotFinite // a number, but too large for float64
+	}
+	if err != nil {
+		return "", fmt.Errorf("%q is not a number", value)
+	}
+	out, err := c.Convert(v, from, to)
+	if err != nil {
+		return "", err
+	}
+	// Convert succeeded, so both Units exist.
+	fromUnit, _ := c.Unit(from)
+	toUnit, _ := c.Unit(to)
+	return fmt.Sprintf("%s %s = %s %s", formatNumber(v+0), fromUnit.Symbol, formatNumber(out), toUnit.Symbol), nil
+}
+
+// formatNumber rounds to 6 significant digits; very small or large numbers
+// use exponent notation.
+func formatNumber(v float64) string {
+	return strconv.FormatFloat(v, 'g', 6, 64)
 }
 
 // newPage returns the data for a Category's empty form: "from" defaults to

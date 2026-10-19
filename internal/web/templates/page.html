@@ -2,7 +2,7 @@
 <h1>{{.Category.Name}}</h1>
 <form method="post" action="/{{.Category.ID}}">
   <label>Value
-    <input type="number" step="any" name="value" required>
+    <input type="number" step="any" name="value" value="{{.Value}}" required>
   </label>
   <label>From
     <select name="from">{{range .Category.Units}}
@@ -16,4 +16,6 @@
   </label>
   <button type="submit">Convert</button>
 </form>
+{{if .Error}}<p class="error" role="alert">{{.Error}}</p>{{end}}
+{{if .Result}}<p class="result">{{.Result}}</p>{{end}}
 {{end}}
