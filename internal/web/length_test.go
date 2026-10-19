@@ -1,7 +1,7 @@
 package web_test
 
 import (
-	"html/template"
+	"html"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -44,12 +44,12 @@ func TestLengthConversions(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.want, func(t *testing.T) {
 			resp := post(t, "/length", tt.value, tt.from, tt.to)
-			html := body(t, resp)
+			text := shown(t, resp)
 
 			if resp.StatusCode != http.StatusOK {
 				t.Fatalf("status = %d, want %d", resp.StatusCode, http.StatusOK)
 			}
-			if !strings.Contains(html, tt.want) {
+			if !strings.Contains(text, tt.want) {
 				t.Errorf("page does not show %q", tt.want)
 			}
 		})
@@ -88,25 +88,27 @@ func TestLengthRejectsInvalidInput(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			resp := post(t, "/length", tt.value, tt.from, tt.to)
-			html := body(t, resp)
+			text := shown(t, resp)
 
 			if resp.StatusCode != http.StatusBadRequest {
 				t.Errorf("status = %d, want %d", resp.StatusCode, http.StatusBadRequest)
 			}
-			if !strings.Contains(html, htmlEscape(tt.wantError)) {
+			if !strings.Contains(text, tt.wantError) {
 				t.Errorf("page does not show error %q", tt.wantError)
 			}
-			if strings.Contains(html, `class="result"`) {
+			if strings.Contains(text, `class="result"`) {
 				t.Error("page shows a result for invalid input")
 			}
-			if !strings.Contains(html, `name="value" value="`+htmlEscape(tt.value)+`"`) {
+			if !strings.Contains(text, `name="value" value="`+tt.value+`"`) {
 				t.Errorf("value %q is not kept in the form", tt.value)
 			}
 		})
 	}
 }
 
-// htmlEscape mirrors html/template's escaping of quotes in text and attributes.
-func htmlEscape(s string) string {
-	return template.HTMLEscapeString(s)
+// shown returns the page with HTML entities decoded (&#34; -> ", &#43; -> +),
+// i.e. the text as a browser displays it.
+func shown(t *testing.T, resp *http.Response) string {
+	t.Helper()
+	return html.UnescapeString(body(t, resp))
 }
