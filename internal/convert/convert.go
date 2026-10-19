@@ -24,6 +24,7 @@ type Unit struct {
 	Symbol string  // shown in results, e.g. "m"
 	Factor float64 // how many base units (e.g. meters) one of this Unit is
 	Offset float64 // added after Factor on the way to the base unit (e.g. 273.15 for Celsius)
+	Min    float64 // lowest allowed value in this Unit: 0 for length and weight, -273.15 for Celsius
 }
 
 // Category is a family of Units that can be converted into each other.
@@ -60,10 +61,9 @@ func (c Category) Convert(value float64, from, to string) (float64, error) {
 	if !ok {
 		return 0, fmt.Errorf("%w %q", ErrUnknownUnit, to)
 	}
-	// Every Category has the same lower bound: zero in its base unit
-	// (0 m, 0 g, 0 K). The tolerance absorbs float rounding at the boundary,
-	// e.g. -459.67 °F, which is exactly 0 K.
-	if base := value*fromUnit.Factor + fromUnit.Offset; base < -1e-9 {
+	// Each Unit knows its own lower bound (0 m, -273.15 °C, ...), so the check
+	// is an exact comparison in the Unit the user typed, with no float rounding.
+	if value < fromUnit.Min {
 		return 0, c.BelowZero
 	}
 	if from == to {
@@ -76,8 +76,11 @@ func (c Category) Convert(value float64, from, to string) (float64, error) {
 	if math.IsInf(out, 0) {
 		return 0, ErrNotFinite
 	}
-	if math.Abs(out) < 1e-9 {
-		out = 0 // rounding at absolute zero, e.g. -273.15 °C -> 1e-14 K
+	// Offsets leave float noise where the result should be exactly 0
+	// (e.g. 32 °F -> 5.7e-14 °C). Only offset Conversions are rounded, so
+	// genuinely tiny lengths and weights stay as they are.
+	if (fromUnit.Offset != 0 || toUnit.Offset != 0) && math.Abs(out) < 1e-9 {
+		out = 0
 	}
 	return out, nil
 }
@@ -122,8 +125,8 @@ var Temperature = Category{
 	Name:      "Temperature",
 	BelowZero: ErrBelowZeroK,
 	Units: []Unit{
-		{ID: "celsius", Name: "Celsius", Symbol: "°C", Factor: 1, Offset: 273.15},
-		{ID: "fahrenheit", Name: "Fahrenheit", Symbol: "°F", Factor: 5.0 / 9, Offset: 459.67 * 5.0 / 9},
+		{ID: "celsius", Name: "Celsius", Symbol: "°C", Factor: 1, Offset: 273.15, Min: -273.15},
+		{ID: "fahrenheit", Name: "Fahrenheit", Symbol: "°F", Factor: 5.0 / 9, Offset: 459.67 * 5.0 / 9, Min: -459.67},
 		{ID: "kelvin", Name: "Kelvin", Symbol: "K", Factor: 1},
 	},
 }

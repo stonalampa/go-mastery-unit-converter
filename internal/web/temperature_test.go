@@ -59,6 +59,7 @@ func TestTemperatureRejectsBelowAbsoluteZero(t *testing.T) {
 		{"-273.16", "celsius"},
 		{"-459.68", "fahrenheit"},
 		{"-1", "kelvin"},
+		{"-1e-10", "kelvin"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.value+" "+tt.from, func(t *testing.T) {
