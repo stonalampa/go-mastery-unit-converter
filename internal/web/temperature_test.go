@@ -37,6 +37,7 @@ func TestTemperatureConversions(t *testing.T) {
 		{"-273.15", "celsius", "kelvin", "-273.15 °C = 0 K"},
 		{"-459.67", "fahrenheit", "kelvin", "-459.67 °F = 0 K"},
 		{"300", "kelvin", "celsius", "300 K = 26.85 °C"},
+		{"-273.1499999999", "celsius", "kelvin", "-273.15 °C = 9.99876e-11 K"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.want, func(t *testing.T) {

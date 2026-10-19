@@ -79,7 +79,7 @@ func (c Category) Convert(value float64, from, to string) (float64, error) {
 	// Offsets leave float noise where the result should be exactly 0
 	// (e.g. 32 °F -> 5.7e-14 °C). Only offset Conversions are rounded, so
 	// genuinely tiny lengths and weights stay as they are.
-	if (fromUnit.Offset != 0 || toUnit.Offset != 0) && math.Abs(out) < 1e-9 {
+	if (fromUnit.Offset != 0 || toUnit.Offset != 0) && math.Abs(out) < 1e-12 {
 		out = 0
 	}
 	return out, nil
