@@ -1,0 +1,21 @@
+{{define "layout"}}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Category.Name}} converter</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 32rem; margin: 2rem auto; padding: 0 1rem; }
+  nav a { margin-right: 1rem; }
+  nav a[aria-current] { font-weight: bold; }
+  label { display: block; margin-top: 1rem; }
+  input, select, button { font-size: 1rem; padding: .3rem; }
+  button { margin-top: 1rem; }
+</style>
+</head>
+<body>
+<nav>{{range .Nav}}<a href="{{.Path}}"{{if eq .Path (printf "/%s" $.Category.ID)}} aria-current="page"{{end}}>{{.Name}}</a>{{end}}</nav>
+{{template "page" .}}
+</body>
+</html>
+{{end}}
