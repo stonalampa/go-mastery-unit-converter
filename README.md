@@ -12,7 +12,7 @@ go run ./cmd/unit-converter -addr :3000     # another address
 make build && ./bin/unit-converter          # a single binary with the HTML embedded
 ```
 
-There is one page per category: `/length`, `/weight` and `/temperature`. `/` redirects to `/length`. Each page has a form with a value, a "from" unit and a "to" unit. The form posts back to the same page, which shows the result, or an error with HTTP 400. The value and selected units stay in the form.
+There is one page per category: `/length`, `/weight` and `/temperature`. `/` redirects to `/length`. Each page has a form with a value, a "from" unit and a "to" unit. The form posts back to the same page, which shows the result, or an error with HTTP 400. The value and the selected units stay in the form; a unit that doesn't exist (only possible outside the form) falls back to the default selection.
 
 ```text
 POST /length       value=1    from=mile      to=kilometer    → 1 mi = 1.60934 km
