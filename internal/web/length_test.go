@@ -40,6 +40,7 @@ func TestLengthConversions(t *testing.T) {
 		{"-0", "foot", "centimeter", "0 ft = 0 cm"},
 		{"0.1", "inch", "inch", "0.1 in = 0.1 in"},
 		{"1e308", "kilometer", "mile", "1e+308 km = 6.21371e+307 mi"},
+		{"1e-10", "meter", "kilometer", "1e-10 m = 1e-13 km"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.want, func(t *testing.T) {
@@ -79,6 +80,7 @@ func TestLengthRejectsInvalidInput(t *testing.T) {
 		{"not a number", "abc", "meter", "foot", `"abc" is not a number`},
 		{"comma decimal", "1,5", "meter", "foot", `"1,5" is not a number`},
 		{"negative length", "-1", "meter", "foot", "value must not be negative"},
+		{"tiny negative length", "-1e-10", "meter", "foot", "value must not be negative"},
 		{"not finite", "Inf", "meter", "foot", "value must be a finite number"},
 		{"too large to represent", "1e999", "meter", "foot", "value must be a finite number"},
 		{"result overflows", "1e308", "mile", "millimeter", "value must be a finite number"},
