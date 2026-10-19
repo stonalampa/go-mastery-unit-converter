@@ -61,7 +61,9 @@ func (c Category) Convert(value float64, from, to string) (float64, error) {
 	if from == to {
 		return value, nil // exact; value*f/f may differ in the last bit
 	}
-	out := value * fromUnit.Factor / toUnit.Factor
+	// Ratio first: it is a modest number, so a large value can't overflow in
+	// an intermediate step when the result itself fits in a float64.
+	out := value * (fromUnit.Factor / toUnit.Factor)
 	if math.IsInf(out, 0) {
 		return 0, ErrNotFinite
 	}
