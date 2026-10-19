@@ -30,7 +30,7 @@ var nav = []navLink{
 }
 
 // categories are the Categories served, one page each.
-var categories = []convert.Category{convert.Length, convert.Weight}
+var categories = []convert.Category{convert.Length, convert.Weight, convert.Temperature}
 
 // pageData is everything the page template renders.
 type pageData struct {

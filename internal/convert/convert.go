@@ -13,6 +13,7 @@ import (
 var (
 	ErrUnknownUnit = errors.New("unknown unit")
 	ErrNegative    = errors.New("value must not be negative")
+	ErrBelowZeroK  = errors.New("value is below absolute zero")
 	ErrNotFinite   = errors.New("value must be a finite number")
 )
 
@@ -22,6 +23,7 @@ type Unit struct {
 	Name   string  // shown in dropdowns, e.g. "Meter"
 	Symbol string  // shown in results, e.g. "m"
 	Factor float64 // how many base units (e.g. meters) one of this Unit is
+	Offset float64 // added after Factor on the way to the base unit (e.g. 273.15 for Celsius)
 }
 
 // Category is a family of Units that can be converted into each other.
@@ -29,6 +31,9 @@ type Category struct {
 	ID    string // URL path segment, e.g. "length"
 	Name  string // page title, e.g. "Length"
 	Units []Unit
+	// BelowZero is the error for a value that is below zero in the base
+	// unit: a negative length or weight, a temperature below absolute zero.
+	BelowZero error
 }
 
 // Unit returns the Unit with the given ID.
@@ -46,9 +51,6 @@ func (c Category) Convert(value float64, from, to string) (float64, error) {
 	if math.IsNaN(value) || math.IsInf(value, 0) {
 		return 0, ErrNotFinite
 	}
-	if value < 0 {
-		return 0, ErrNegative
-	}
 	value += 0 // turns -0 into 0, so "-0" is shown as "0"
 	fromUnit, ok := c.Unit(from)
 	if !ok {
@@ -58,22 +60,33 @@ func (c Category) Convert(value float64, from, to string) (float64, error) {
 	if !ok {
 		return 0, fmt.Errorf("%w %q", ErrUnknownUnit, to)
 	}
+	// Every Category has the same lower bound: zero in its base unit
+	// (0 m, 0 g, 0 K). The tolerance absorbs float rounding at the boundary,
+	// e.g. -459.67 °F, which is exactly 0 K.
+	if base := value*fromUnit.Factor + fromUnit.Offset; base < -1e-9 {
+		return 0, c.BelowZero
+	}
 	if from == to {
 		return value, nil // exact; value*f/f may differ in the last bit
 	}
-	// Ratio first: it is a modest number, so a large value can't overflow in
-	// an intermediate step when the result itself fits in a float64.
-	out := value * (fromUnit.Factor / toUnit.Factor)
+	// The same as (value*from.Factor + from.Offset - to.Offset) / to.Factor,
+	// arranged so the Factor ratio comes first: a huge value whose result
+	// fits in a float64 can't overflow in an intermediate step.
+	out := value*(fromUnit.Factor/toUnit.Factor) + (fromUnit.Offset-toUnit.Offset)/toUnit.Factor
 	if math.IsInf(out, 0) {
 		return 0, ErrNotFinite
+	}
+	if math.Abs(out) < 1e-9 {
+		out = 0 // rounding at absolute zero, e.g. -273.15 °C -> 1e-14 K
 	}
 	return out, nil
 }
 
 // Length is the length Category; its base unit is the meter.
 var Length = Category{
-	ID:   "length",
-	Name: "Length",
+	ID:        "length",
+	Name:      "Length",
+	BelowZero: ErrNegative,
 	Units: []Unit{
 		{ID: "millimeter", Name: "Millimeter", Symbol: "mm", Factor: 0.001},
 		{ID: "centimeter", Name: "Centimeter", Symbol: "cm", Factor: 0.01},
@@ -89,13 +102,28 @@ var Length = Category{
 // Weight is the weight Category; its base unit is the gram. Pound and ounce
 // use the international definitions (1 lb = 453.59237 g, 1 oz = 1/16 lb).
 var Weight = Category{
-	ID:   "weight",
-	Name: "Weight",
+	ID:        "weight",
+	Name:      "Weight",
+	BelowZero: ErrNegative,
 	Units: []Unit{
 		{ID: "milligram", Name: "Milligram", Symbol: "mg", Factor: 0.001},
 		{ID: "gram", Name: "Gram", Symbol: "g", Factor: 1},
 		{ID: "kilogram", Name: "Kilogram", Symbol: "kg", Factor: 1000},
 		{ID: "ounce", Name: "Ounce", Symbol: "oz", Factor: 28.349523125},
 		{ID: "pound", Name: "Pound", Symbol: "lb", Factor: 453.59237},
+	},
+}
+
+// Temperature is the temperature Category; its base unit is the kelvin.
+// Unlike length and weight it needs an Offset: 0 °C is 273.15 K and
+// 0 °F is 459.67 × 5/9 K.
+var Temperature = Category{
+	ID:        "temperature",
+	Name:      "Temperature",
+	BelowZero: ErrBelowZeroK,
+	Units: []Unit{
+		{ID: "celsius", Name: "Celsius", Symbol: "°C", Factor: 1, Offset: 273.15},
+		{ID: "fahrenheit", Name: "Fahrenheit", Symbol: "°F", Factor: 5.0 / 9, Offset: 459.67 * 5.0 / 9},
+		{ID: "kelvin", Name: "Kelvin", Symbol: "K", Factor: 1},
 	},
 }
