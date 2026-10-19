@@ -14,12 +14,16 @@ var categories = []convert.Category{convert.Length, convert.Weight, convert.Temp
 // and back returns the original value (within float tolerance), and that
 // rejected values are rejected with one of the domain's errors.
 func FuzzConvertRoundTrip(f *testing.F) {
-	// Seed corpus: run by plain `go test` and CI; `go test -fuzz` explores further.
-	for cat := range uint8(len(categories)) {
-		for _, v := range []float64{0, 1, 0.5, 100, -40, -273.15, -459.67, 1e-9, 1e9, 1e300} {
-			f.Add(v, cat, uint8(0), uint8(1))
-			f.Add(v, cat, uint8(1), uint8(2))
-			f.Add(v, cat, uint8(2), uint8(0))
+	// Seed corpus: every Unit pair of every Category with a few typical and
+	// edge values. Plain `go test` (and CI) runs these; `go test -fuzz`
+	// explores further.
+	for ci, c := range categories {
+		for from := range c.Units {
+			for to := range c.Units {
+				for _, v := range []float64{0, 1, 0.5, 100, -40, -273.15, -459.67, 1e-9, 1e9, 1e300} {
+					f.Add(v, uint8(ci), uint8(from), uint8(to))
+				}
+			}
 		}
 	}
 	f.Fuzz(func(t *testing.T, value float64, cat, from, to uint8) {
@@ -38,8 +42,13 @@ func FuzzConvertRoundTrip(f *testing.F) {
 		if err != nil {
 			t.Fatalf("round trip %v %s -> %v %s failed on the way back: %v", value, a.ID, out, b.ID, err)
 		}
-		// Relative tolerance, plus an absolute part for the offsets (~hundreds).
-		if diff, tol := math.Abs(back-value), 1e-9*(math.Abs(value)+1000); diff > tol {
+		// Relative tolerance; offset Conversions (temperature) also cancel
+		// numbers around 273 or 460, which costs absolute precision.
+		tol := 1e-9 * math.Abs(value)
+		if a.Offset != 0 || b.Offset != 0 {
+			tol += 1e-9 * 1000
+		}
+		if diff := math.Abs(back - value); diff > tol {
 			t.Errorf("%v %s -> %v %s -> %v %s; off by %v (> %v)", value, a.ID, out, b.ID, back, a.ID, diff, tol)
 		}
 	})
