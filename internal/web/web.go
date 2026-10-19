@@ -29,6 +29,9 @@ var nav = []navLink{
 	{"/temperature", "Temperature"},
 }
 
+// categories are the Categories served, one page each.
+var categories = []convert.Category{convert.Length, convert.Weight}
+
 // pageData is everything the page template renders.
 type pageData struct {
 	Nav      []navLink
@@ -45,10 +48,14 @@ func NewHandler() http.Handler {
 	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/length", http.StatusSeeOther)
 	})
-	mux.HandleFunc("GET /length", func(w http.ResponseWriter, _ *http.Request) {
-		render(w, http.StatusOK, newPage(convert.Length))
-	})
-	mux.HandleFunc("POST /length", convertHandler(convert.Length))
+	for _, c := range categories {
+		// Each iteration has its own c (Go 1.22+), so every closure below
+		// keeps the Category it was registered for.
+		mux.HandleFunc("GET /"+c.ID, func(w http.ResponseWriter, _ *http.Request) {
+			render(w, http.StatusOK, newPage(c))
+		})
+		mux.HandleFunc("POST /"+c.ID, convertHandler(c))
+	}
 	return mux
 }
 

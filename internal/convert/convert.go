@@ -85,3 +85,17 @@ var Length = Category{
 		{ID: "mile", Name: "Mile", Symbol: "mi", Factor: 1609.344},
 	},
 }
+
+// Weight is the weight Category; its base unit is the gram. Pound and ounce
+// use the international definitions (1 lb = 453.59237 g, 1 oz = 1/16 lb).
+var Weight = Category{
+	ID:   "weight",
+	Name: "Weight",
+	Units: []Unit{
+		{ID: "milligram", Name: "Milligram", Symbol: "mg", Factor: 0.001},
+		{ID: "gram", Name: "Gram", Symbol: "g", Factor: 1},
+		{ID: "kilogram", Name: "Kilogram", Symbol: "kg", Factor: 1000},
+		{ID: "ounce", Name: "Ounce", Symbol: "oz", Factor: 28.349523125},
+		{ID: "pound", Name: "Pound", Symbol: "lb", Factor: 453.59237},
+	},
+}
